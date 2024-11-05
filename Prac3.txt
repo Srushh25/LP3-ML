@@ -1,0 +1,313 @@
+Starter: Bank Customer Churn Modeling
+
+
+#Exploratory Analysis
+from mpl_toolkits.mplot3d import Axes3D
+from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt # plotting
+import numpy as np # linear algebra
+import os # accessing directory structure
+import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
+
+
+
+
+
+
+import os
+# Get the current working directory
+current_directory = os.getcwd()
+print(f"Current working directory: {current_directory}")
+
+# Construct the absolute path to the 'input' directory
+input_directory = os.path.join(current_directory, "input")  # Changed '../input' to 'input'
+
+# Print the absolute path
+print(f"Absolute path to input directory: {input_directory}")
+
+# List the contents of the directory (if it exists)
+try:
+    files = os.listdir(input_directory)
+    print("Files in the input directory:", files)
+except FileNotFoundError:
+    print(f"Error: The directory '{input_directory}' does not exist.")
+
+
+
+
+
+
+
+
+
+def plotPerColumnDistribution(df, nGraphShown, nGraphPerRow):
+    nunique = df.nunique()
+    df = df[[col for col in df if nunique[col] > 1 and nunique[col] < 50]] # For displaying purposes, pick columns that have between 1 and 50 unique values
+    nRow, nCol = df.shape
+    columnNames = list(df)
+    nGraphRow = (nCol + nGraphPerRow - 1) / nGraphPerRow
+    plt.figure(num = None, figsize = (6 * nGraphPerRow, 8 * nGraphRow), dpi = 80, facecolor = 'w', edgecolor = 'k')
+    for i in range(min(nCol, nGraphShown)):
+        plt.subplot(nGraphRow, nGraphPerRow, i + 1)
+        columnDf = df.iloc[:, i]
+        if (not np.issubdtype(type(columnDf.iloc[0]), np.number)):
+            valueCounts = columnDf.value_counts()
+            valueCounts.plot.bar()
+        else:
+            columnDf.hist()
+        plt.ylabel('counts')
+        plt.xticks(rotation = 90)
+        plt.title(f'{columnNames[i]} (column {i})')
+    plt.tight_layout(pad = 1.0, w_pad = 1.0, h_pad = 1.0)
+    plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Correlation matrix
+def plotCorrelationMatrix(df, graphWidth):
+    filename = df.dataframeName
+    df = df.dropna('columns') # drop columns with NaN
+    df = df[[col for col in df if df[col].nunique() > 1]] # keep columns where there are more than 1 unique values
+    if df.shape[1] < 2:
+        print(f'No correlation plots shown: The number of non-NaN or constant columns ({df.shape[1]}) is less than 2')
+        return
+    corr = df.corr()
+    plt.figure(num=None, figsize=(graphWidth, graphWidth), dpi=80, facecolor='w', edgecolor='k')
+    corrMat = plt.matshow(corr, fignum = 1)
+    plt.xticks(range(len(corr.columns)), corr.columns, rotation=90)
+    plt.yticks(range(len(corr.columns)), corr.columns)
+    plt.gca().xaxis.tick_bottom()
+    plt.colorbar(corrMat)
+    plt.title(f'Correlation Matrix for {filename}', fontsize=15)
+    plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Scatter and density plots
+def plotScatterMatrix(df, plotSize, textSize):
+    df = df.select_dtypes(include =[np.number]) # keep only numerical columns
+    # Remove rows and columns that would lead to df being singular
+    df = df.dropna('columns')
+    df = df[[col for col in df if df[col].nunique() > 1]] # keep columns where there are more than 1 unique values
+    columnNames = list(df)
+    if len(columnNames) > 10: # reduce the number of columns for matrix inversion of kernel density plots
+        columnNames = columnNames[:10]
+    df = df[columnNames]
+    ax = pd.plotting.scatter_matrix(df, alpha=0.75, figsize=[plotSize, plotSize], diagonal='kde')
+    corrs = df.corr().values
+    for i, j in zip(*plt.np.triu_indices_from(ax, k = 1)):
+        ax[i, j].annotate('Corr. coef = %.3f' % corrs[i, j], (0.8, 0.2), xycoords='axes fraction', ha='center', va='center', size=textSize)
+    plt.suptitle('Scatter and Density Plot')
+    plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+nRowsRead = 1000 # specify 'None' if want to read whole file
+# Churn_Modelling.csv has 10001 rows in reality, but we are only loading/previewing the first 1000 rows
+df1 = pd.read_csv('Churn_Modelling.csv', delimiter=',', nrows = nRowsRead)
+df1.dataframeName = 'Churn_Modelling.csv'
+nRow, nCol = df1.shape
+print(f'There are {nRow} rows and {nCol} columns')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import math
+import numpy as np
+import matplotlib.pyplot as plt
+
+def plotPerColumnDistribution(df, num_plots, cols):
+    # Select only numeric and categorical columns for plotting
+    numeric_columns = df.select_dtypes(include=['number', 'category', 'object']).columns
+    
+    # Limit the number of plots to either the user-specified value or the total number of numeric columns
+    num_plots = min(num_plots, len(numeric_columns))
+    
+    # Ensure the number of rows is a valid integer
+    rows = math.ceil(num_plots / cols)  # Round up to ensure enough rows
+    
+    # Create subplots with calculated rows and columns
+    fig, axes = plt.subplots(rows, cols, figsize=(cols * 5, rows * 5))
+    
+    # Flatten axes for easy iteration if it's a 2D array
+    axes = axes.flatten() if num_plots > 1 else [axes]
+    
+    for i, col in enumerate(numeric_columns[:num_plots]):
+        df[col].value_counts().plot(kind='bar', ax=axes[i], title=f'{col} (column {i})')
+        axes[i].set_ylabel('counts')
+        axes[i].set_xlabel(col)
+    
+    # Hide any unused subplots if fewer columns than grid spaces
+    for j in range(i + 1, len(axes)):
+        fig.delaxes(axes[j])
+    
+    plt.tight_layout()
+    plt.show()
+
+# Use the function with your DataFrame
+plotPerColumnDistribution(df1, 10, 5)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+def plotCorrelationMatrix(df, graphWidth):
+    # Assuming 'dataframeName' is part of your dataframe metadata
+    filename = 'Churn_Modelling.csv'  # Replace with the actual file name if needed
+    
+    # Keep only numeric columns for correlation
+    df_numeric = df.select_dtypes(include=['number'])  # Select only numeric columns
+    
+    # Drop columns with NaN values and only keep columns with more than 1 unique value
+    df_numeric = df_numeric.dropna(axis=1)  # Drop columns with NaN values
+    df_numeric = df_numeric[[col for col in df_numeric if df_numeric[col].nunique() > 1]]  # Keep columns with more than 1 unique value
+    
+    # Check if we have enough columns to plot a correlation matrix
+    if df_numeric.shape[1] < 2:
+        print(f"Not enough data to plot correlation matrix for {filename}")
+        return
+
+    # Calculate the correlation matrix
+    corr = df_numeric.corr()
+    
+    # Set up the matplotlib figure
+    plt.figure(figsize=(graphWidth, graphWidth))
+    
+    # Draw the heatmap
+    sns.heatmap(corr, annot=False, cmap="viridis", cbar=True)
+    
+    # Add title
+    plt.title(f'Correlation Matrix for {filename}', size=15)
+    
+    # Show the plot
+    plt.show()
+
+# Call the function
+plotCorrelationMatrix(df1, 8)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+from pandas.plotting import scatter_matrix
+
+def plotScatterMatrix(df, plotSize, textSize):
+    # Select only numeric columns
+    df_numeric = df.select_dtypes(include=[np.number])  # Keep only numerical columns
+    
+    # Drop columns with NaN values and keep columns with more than 1 unique value
+    df_numeric = df_numeric.dropna(axis=1)  # Corrected: axis=1 drops columns with NaN values
+    df_numeric = df_numeric[[col for col in df_numeric if df_numeric[col].nunique() > 1]]  # Keep columns with more than 1 unique value
+    
+    # Create a scatter matrix
+    ax = scatter_matrix(df_numeric, figsize=(plotSize, plotSize), diagonal='kde')
+    
+    # Rotate x-axis labels and set font size for both axes
+    for i in range(len(ax)):
+        for j in range(len(ax)):
+            ax[i, j].xaxis.label.set_size(textSize)
+            ax[i, j].yaxis.label.set_size(textSize)
+            ax[i, j].tick_params(axis='both', labelsize=textSize)
+    
+    # Show plot
+    plt.show()
+
+# Call the function
+plotScatterMatrix(df1, 20, 10)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
